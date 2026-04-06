@@ -31,13 +31,23 @@ async def start(u,c): await u.message.reply_text("Надішли:\nКомпан�
 async def handle(u,c):
     if not u.message or not u.message.text: return
     text = u.message.text.strip()
-    chat_type = u.message.chat.type
-    if chat_type in ("group","supergroup"):
+    chat_type = str(u.message.chat.type)
+    logger.info(f"Chat type: {chat_type}, text: {text[:50]}")
+
+    if chat_type in ("group", "supergroup"):
         if not text.lower().startswith(GROUP_TRIGGER):
             return
-        lines = text.split("\n")
-        lines = [l for l in lines if l.strip().lower() != GROUP_TRIGGER]
-        text = "\n".join(lines)
+        # Видаляємо тригер — підтримуємо обидва формати:
+        # "#лід\nНазва компанії" і "#лід Назва компанії"
+        after_trigger = text[len(GROUP_TRIGGER):]
+        if after_trigger.startswith("\n"):
+            text = after_trigger.lstrip("\n")
+        elif after_trigger.strip() == "":
+            lines = text.split("\n")[1:]
+            text = "\n".join(lines)
+        else:
+            text = after_trigger.lstrip()
+
     lead=parse_lead(text)
     if not lead: await u.message.reply_text("Потрібно 3+ рядки"); return
     await u.message.reply_text("Створюю...")
