@@ -1,10 +1,11 @@
 import logging
+import os
 import requests
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
-TELEGRAM_TOKEN    = "8791950861:AAG-YcpgrrQ6l2KDX0ClOj8ofOVWEBwf7eo"
-CLICKUP_API_TOKEN = "pk_106663989_PGMR0EIAVC14BW3MJ8YQAAJ9PCQKDJCA"
+TELEGRAM_TOKEN    = os.environ.get("TELEGRAM_TOKEN", "")
+CLICKUP_API_TOKEN = os.environ.get("CLICKUP_API_TOKEN", "")
 CLICKUP_LIST_ID   = "901522274038"
 FIELD_PIB_KONTAKT = "770029eb-479c-44c2-952b-ab6e65644fdb"
 FIELD_POSADA      = "0f16e7f4-e3a2-4c87-a27c-e621e6c5b9ee"
@@ -37,12 +38,8 @@ async def handle(u,c):
     if chat_type in ("group", "supergroup"):
         if not text.lower().startswith(GROUP_TRIGGER):
             return
-        # Видаляємо тригер — підтримуємо обидва формати:
-        # "#лід\nНазва компанії" і "#лід Назва компанії"
         after_trigger = text[len(GROUP_TRIGGER):]
-        if after_trigger.startswith("\n"):
-            text = after_trigger.lstrip("\n")
-        elif after_trigger.strip() == "":
+        if after_trigger == "" or after_trigger.startswith("\n"):
             lines = text.split("\n")[1:]
             text = "\n".join(lines)
         else:
