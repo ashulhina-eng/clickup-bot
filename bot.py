@@ -4,6 +4,7 @@ import requests
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
+
 TELEGRAM_TOKEN    = os.environ.get("TELEGRAM_TOKEN", "")
 CLICKUP_API_TOKEN = os.environ.get("CLICKUP_API_TOKEN", "")
 CLICKUP_LIST_ID   = "901522274038"
@@ -13,8 +14,10 @@ POSADA_OPTIONS    = {"hrd":"f6e2f95c-e554-4de1-a768-d3401878ed3e","cmo":"7fb92f4
 POSADA_DEFAULT    = "91d66190-6f20-4320-98b9-af92c031e520"
 GROUP_TRIGGER     = "#лід"
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def parse_lead(text):
     lines=[l.strip() for l in text.strip().split("\n") if l.strip()]
@@ -22,41 +25,19 @@ def parse_lead(text):
     clean=lambda line: line.split(":",1)[1].strip() if ":" in line else line
     return {"company":clean(lines[0]),"name":clean(lines[1]),"contact":clean(lines[2]),"position":clean(lines[3]) if len(lines)>3 else "інше","comment":clean(lines[4]) if len(lines)>4 else ""}
 
+
 def resolve_posada(p): return POSADA_OPTIONS.get(p.strip().lower(),POSADA_DEFAULT)
 
+
 def create_task(lead):
-    return requests.post(f"https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task",json={"name":lead["company"],"description":lead["comment"],"status":"LEADS","priority":2,"custom_fields":[{"id":FIELD_PIB_KONTAKT,"value":lead["name"]+" / "+lead["contact"]},{"id":FIELD_POSADA,"value":resolve_posada(lead["position"])}]},headers={"Authorization":CLICKUP_API_TOKEN,"Content-Type":"application/json"},timeout=10).json()
+    return requests.post(f"https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task",json={"name":lead["company"],"description":lead["comment"],"status":"leads","priority":2,"custom_fields":[{"id":FIELD_PIB_KONTAKT,"value":lead["name"]+" / "+lead["contact"]},{"id":FIELD_POSADA,"value":resolve_posada(lead["position"])}]},headers={"Authorization":CLICKUP_API_TOKEN,"Content-Type":"application/json"},timeout=10).json()
+
 
 async def start(u,c): await u.message.reply_text("Надішли:\nКомпанія\nПІБ\nКонтакт\nПосада\nКоментар\n\nУ групових чатах починай з #лід")
+
 
 async def handle(u,c):
     if not u.message or not u.message.text: return
     text = u.message.text.strip()
     chat_type = str(u.message.chat.type)
     logger.info(f"Chat type: {chat_type}, text: {text[:50]}")
-
-    if chat_type in ("group", "supergroup"):
-        if not text.lower().startswith(GROUP_TRIGGER):
-            return
-        after_trigger = text[len(GROUP_TRIGGER):]
-        if after_trigger == "" or after_trigger.startswith("\n"):
-            lines = text.split("\n")[1:]
-            text = "\n".join(lines)
-        else:
-            text = after_trigger.lstrip()
-
-    lead=parse_lead(text)
-    if not lead: await u.message.reply_text("Потрібно 3+ рядки"); return
-    await u.message.reply_text("Створюю...")
-    try:
-        r=create_task(lead)
-        await u.message.reply_text(f"Готово! {r.get('url','')}" if "id" in r else f"Помилка: {r.get('err',r)}")
-    except Exception as e: await u.message.reply_text(f"Помилка: {e}")
-
-def main():
-    app=Application.builder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start",start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,handle))
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__=="__main__": main()
