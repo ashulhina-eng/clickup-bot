@@ -25,7 +25,16 @@ def parse_lead(text):
 def resolve_posada(p): return POSADA_OPTIONS.get(p.strip().lower(),POSADA_DEFAULT)
 
 def create_task(lead):
-    return requests.post(f"https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task",json={"name":lead["company"],"description":lead["comment"],"status":"leads","priority":2,"custom_fields":[{"id":FIELD_PIB_KONTAKT,"value":lead["name"]+" / "+lead["contact"]},{"id":FIELD_POSADA,"value":resolve_posada(lead["position"])}]},headers={"Authorization":CLICKUP_API_TOKEN,"Content-Type":"application/json"},timeout=10).json()
+    resp = requests.post(
+        f"https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task",
+        json={"name":lead["company"],"description":lead["comment"],"status":"leads","priority":2,"custom_fields":[{"id":FIELD_PIB_KONTAKT,"value":lead["name"]+" / "+lead["contact"]},{"id":FIELD_POSADA,"value":resolve_posada(lead["position"])}]},
+        headers={"Authorization":CLICKUP_API_TOKEN,"Content-Type":"application/json"},
+        timeout=10
+    )
+    r = resp.json()
+    if resp.status_code == 401 or r.get("err") == "Token invalid":
+        raise ValueError("⚠️ ClickUp токен застарів. Оновіть CLICKUP_API_TOKEN в Railway.")
+    return r
 
 async def start(u,c): await u.message.reply_text("\u041d\u0430\u0434\u0456\u0448\u043b\u0438:\n\u041a\u043e\u043c\u043f\u0430\u043d\u0456\u044f\n\u041f\u0406\u0411\n\u041a\u043e\u043d\u0442\u0430\u043a\u0442\n\u041f\u043e\u0441\u0430\u0434\u0430\n\u041a\u043e\u043c\u0435\u043d\u0442\u0430\u0440\n\n\u0423 \u0433\u0440\u0443\u043f\u043e\u0432\u0438\u0445 \u0447\u0430\u0442\u0430\u0445 \u043f\u043e\u0447\u0438\u043d\u0430\u0439 \u0437 #\u043b\u0456\u0434")
 
